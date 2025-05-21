@@ -1,7 +1,8 @@
 import logging
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.types import FSInputFile, ReplyKeyboardMarkup, KeyboardButton
+from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiohttp import web
 import os
 from dotenv import load_dotenv
 
@@ -145,5 +146,18 @@ async def forward_to_admin(message: types.Message):
     else:
         await message.reply("❗ Бот не настроен для пересылки сообщений админу.")
 
+# Настройка веб-сервера
+app = web.Application()
+webhook_path = f"/bot/{BOT_TOKEN}"
+handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+handler.register(app, path=webhook_path)
+
+async def on_startup():
+    # Устанавливаем вебхук
+    webhook_url = "https://prav-ili-neprav.onrender.com " + webhook_path
+    await bot.set_webhook(webhook_url)
+
 if __name__ == "__main__":
-    dp.run_polling(bot)
+    app.on_startup.append(on_startup)
+    port = int(os.getenv("PORT", 10000))  # Render использует переменную PORT
+    web.run_app(app, host="0.0.0.0", port=port)
