@@ -136,12 +136,24 @@ async def help_button_handler(message: types.Message):
     )
 
 # Обработка сообщений пользователей (пересылаем админу)
-@dp.message(F.text, ~F.from_user.id == ADMIN_ID)
+@dp.message(F.from_user.id != ADMIN_ID)
 async def forward_to_admin(message: types.Message):
-    text = f"📩 Вопрос от @{message.from_user.username or 'без ника'} (ID: {message.from_user.id}):\n{message.text}"
-    sent = await bot.send_message(ADMIN_ID, text)
-    user_message_mapping[sent.message_id] = message.from_user.id  # Связываем ID сообщения с пользователем
-    await message.reply("✅ Ваша заявка отправлена. Ожидайте ответа.")
+    try:
+        user_id = message.from_user.id
+        username = message.from_user.username or 'без ника'
+        text = message.text or "<нет текста>"
+
+        sent = await bot.send_message(
+            ADMIN_ID,
+            f"📩 Вопрос от @{username} (ID: {user_id}):\n{text}"
+        )
+
+        user_message_mapping[sent.message_id] = user_id
+        await message.reply("✅ Ваша заявка отправлена. Ожидайте ответа.")
+    except Exception as e:
+        print(f"Ошибка при пересылке сообщения: {e}")
+        await message.reply("❗ Ошибка при отправке. Попробуйте позже.")
+
 
 # Ответ администратора на сообщение — пересылаем пользователю
 @dp.message(F.from_user.id == ADMIN_ID)
