@@ -7,11 +7,12 @@ from aiohttp import web
 import os
 from dotenv import load_dotenv
 
+
 # Загружаем переменные окружения из .env файла
 load_dotenv()
 
 API_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = os.getenv("ADMIN_ID")
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 # Проверяем, что переменные установлены
 if not API_TOKEN:
@@ -23,6 +24,9 @@ logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
+
+# Хранилище ID пользователей, связанных с сообщениями админу
+user_message_mapping = {}
 
 # Создаем клавиатуру с кнопками
 def get_main_keyboard():
@@ -106,19 +110,15 @@ async def faq_command(message: types.Message):
 При нарушении — начисляется неустойка (1% стоимости товара/услуги за каждый день просрочки)."""
     await message.answer(faq_text)
 
-dp.message(Command("konsultant"))
+@dp.message(Command("konsultant"))
 async def konsultant_command(message: types.Message):
-    image_path = "konsultant.jpg"  # Путь к изображению для консультанта
-    if os.path.exists(image_path):
-        photo = FSInputFile(image_path)  # Загружаем изображение
-        await message.answer_photo(photo)
-    else:
-        await message.answer("❗ Изображение для консультанта не найдено.")
-
+    if os.path.exists("konsultant.jpg"):
+        await message.answer_photo(FSInputFile("konsultant.jpg"))
     await message.answer(
-        "Пожалуйста, опишите свою проблему — специалист свяжется с вами в ближайшее время.\nПросто отправьте сообщение с описанием, и мы вам ответим!",
+        "Пожалуйста, опишите свою проблему — специалист свяжется с вами.",
         reply_markup=get_main_keyboard()
     )
+
 
 @dp.message(F.text == "FAQ")
 async def faq_button_handler(message: types.Message):
@@ -135,17 +135,26 @@ async def help_button_handler(message: types.Message):
         reply_markup=get_main_keyboard()
     )
 
-@dp.message(F.text, ~F.text.startswith("/"))
+# Обработка сообщений пользователей (пересылаем админу)
+@dp.message(F.text, ~F.from_user.id == ADMIN_ID)
 async def forward_to_admin(message: types.Message):
-    if ADMIN_ID:
-        text = (
-            f"📩 Новое сообщение от @{message.from_user.username or message.from_user.id}:\n"
-            f"{message.text}"
-        )
-        await bot.send_message(int(ADMIN_ID), text)
-        await message.reply("✅ Ваша заявка отправлена специалисту. Ожидайте ответа.")
+    text = f"📩 Вопрос от @{message.from_user.username or 'без ника'} (ID: {message.from_user.id}):\n{message.text}"
+    sent = await bot.send_message(ADMIN_ID, text)
+    user_message_mapping[sent.message_id] = message.from_user.id  # Связываем ID сообщения с пользователем
+    await message.reply("✅ Ваша заявка отправлена. Ожидайте ответа.")
+
+# Ответ администратора на сообщение — пересылаем пользователю
+@dp.message(F.from_user.id == ADMIN_ID)
+async def handle_admin_reply(message: types.Message):
+    if message.reply_to_message and message.reply_to_message.message_id in user_message_mapping:
+        user_id = user_message_mapping[message.reply_to_message.message_id]
+        try:
+            await bot.send_message(user_id, f"💬 Ответ специалиста:\n{message.text}")
+            await message.reply("✅ Ответ отправлен пользователю.")
+        except Exception as e:
+            await message.reply(f"❌ Не удалось отправить сообщение пользователю: {e}")
     else:
-        await message.reply("❗ Бот не настроен для пересылки сообщений админу.")
+        await message.reply("❗ Ответьте на сообщение пользователя, чтобы бот понял, кому отправить сообщение.")
 
 # Настройка веб-сервера
 app = web.Application()
