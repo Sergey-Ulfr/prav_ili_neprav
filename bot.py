@@ -148,7 +148,7 @@ async def forward_to_admin(message: types.Message):
 
 # Настройка веб-сервера
 app = web.Application()
-webhook_path = f"/bot/{BOT_TOKEN}"
+webhook_path = f"/bot/{API_TOKEN}"
 handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
 handler.register(app, path=webhook_path)
 
