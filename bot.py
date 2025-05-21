@@ -152,9 +152,8 @@ webhook_path = f"/bot/{API_TOKEN}"
 handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
 handler.register(app, path=webhook_path)
 
-async def on_startup():
-    # Устанавливаем вебхук
-    webhook_url = "https://prav-ili-neprav.onrender.com " + webhook_path
+async def on_startup(app):  # ← нужно принять app
+    webhook_url = "https://prav-ili-neprav.onrender.com" + webhook_path
     await bot.set_webhook(webhook_url)
 
 if __name__ == "__main__":
