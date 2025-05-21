@@ -1,6 +1,6 @@
 import logging
 from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
+from aiogram.filters import Command, Text
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 import os
@@ -119,15 +119,15 @@ async def konsultant_command(message: types.Message):
         reply_markup=get_main_keyboard()
     )
 
-@dp.message(F.text == "FAQ")
+@dp.message(Text("FAQ"))  # Используйте Text вместо F.text
 async def faq_button_handler(message: types.Message):
     await faq_command(message)
 
-@dp.message(F.text == "Консультант")
+@dp.message(Text("Консультант"))
 async def konsultant_button_handler(message: types.Message):
     await konsultant_command(message)
 
-@dp.message(F.text == "Помощь")
+@dp.message(Text("Помощь"))
 async def help_button_handler(message: types.Message):
     await message.answer(
         "Если у вас возникли вопросы, используйте кнопки ниже или напишите администратору.",
